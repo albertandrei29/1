@@ -82,6 +82,9 @@ Fixpoint BSTmaxval (b : BinTree) : nat :=
                           else BSTmaxval rtree
   end. 
 
+
+
+
 Compute (maxim 12 0).
 Compute ArbEx.
 Compute root(ArbEx).
@@ -96,7 +99,28 @@ Compute BSTmaxval(ArbEx).
 
 
 
+Inductive List := 
+| empty_list : List
+| element : nat -> List -> List. 
 
+Definition ListEx := element 5 (element 9 (element 7 (element 1 (element 11(empty_list))))).
+
+Fixpoint count_elements (l : List) : nat := 
+  match l with
+  | empty_list => 0
+  | element n empty_list => 1
+  | element n remaining => 1 + (count_elements remaining)
+  end.
+
+Definition first_element (l : List) : nat :=
+  match l with
+  | empty_list => 0
+  | element n remaining => n
+  end.
+
+Compute empty_list.
+Compute ListEx.
+Compute count_elements(ListEx).
 
 
 
