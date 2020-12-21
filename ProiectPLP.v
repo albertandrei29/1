@@ -178,6 +178,7 @@ Compute head ListEx3.
 Compute tail ListEx3.
 
 Require Import String.
+Definition Var := string.
 
 Inductive AExp : Type := 
   | avar : string -> AExp
