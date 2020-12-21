@@ -1,7 +1,36 @@
+(* Perechi de numere naturale *)
+
 Import Nat.
 Module Type Int.
 
-Inductive BinTree := 
+Inductive natpair : Type :=
+| pair (n1 n2 : nat).
+
+Notation "( x , y )" := (pair x y).
+
+Definition first' (p : natpair) : nat :=
+  match p with
+  | (x,y) => x
+  end.
+
+Definition second' (p : natpair) : nat :=
+  match p with
+  | (x,y) => y
+  end.
+
+Definition swap_pair (p : natpair) : natpair :=
+  match p with
+  | (x,y) => (y,x)
+  end.
+
+Check (pair 10 12).
+Compute first'(10, 12).
+Compute second'(10, 12).
+Compute swap_pair(10, 12).
+
+(* Arbori binari *)
+
+Inductive BinTree : Type := 
  | leaf : BinTree
  | node : nat -> BinTree -> BinTree -> BinTree.
 
@@ -17,7 +46,7 @@ Definition root (b : BinTree) : nat :=
     | node n ltree rtree => n
   end.
 
-Definition maxim (x y : nat) : nat := 
+Definition maximnat (x y : nat) : nat := 
   match ltb x y with
     | true => y
     | false => x
@@ -83,9 +112,7 @@ Fixpoint BSTmaxval (b : BinTree) : nat :=
   end. 
 
 
-
-
-Compute (maxim 12 0).
+Compute (maximnat 12 0).
 Compute ArbEx.
 Compute root(ArbEx).
 Compute (mirror ArbEx).
@@ -96,14 +123,11 @@ Compute (BS 12 ArbEx).
 Compute BSTminval(ArbEx).
 Compute BSTmaxval(ArbEx).
 
+(* Liste de numere naturale *)
 
-
-
-Inductive List := 
-| empty_list : List
-| element : nat -> List -> List. 
-
-Definition ListEx := element 5 (element 9 (element 7 (element 1 (element 11(empty_list))))).
+Inductive List : Type := 
+| empty_list
+| element (n : nat) (l : List).  
 
 Fixpoint count_elements (l : List) : nat := 
   match l with
@@ -118,10 +142,74 @@ Definition first_element (l : List) : nat :=
   | element n remaining => n
   end.
 
-Compute empty_list.
-Compute ListEx.
-Compute count_elements(ListEx).
+Notation "x :: l" := (element x l) (at level 60, right associativity).
+Notation "[ ]" := empty_list.
+Notation "[ x ; .. ; y ]" := (element x .. (element y empty_list) ..).
 
+Definition head (l : List) : nat :=
+  match l with
+  | empty_list => 0
+  | a :: b => a
+  end.
+
+Fixpoint tail (l : List) : List :=
+  match l with
+  | empty_list => empty_list
+  | h :: t => tail t
+  end.
+
+Fixpoint append (l1 l2 : List) : List :=
+  match l1 with
+  | empty_list => l2
+  | h :: t => h :: (append t l2)
+  end.
+
+Notation "x ++ y" := (append x y) (right associativity, at level 60).
+
+Definition ListEx1 := (element 5(element 2(element 3(element 7(empty_list))))).
+Definition ListEx2 := 10::20::30::empty_list.
+Definition ListEx3 := [1;2;3;4;5;6;7;8;9].
+
+Compute empty_list.
+Compute ListEx1.
+Compute first_element ListEx2.
+Compute count_elements ListEx3.
+Compute head ListEx3.
+Compute tail ListEx3.
+
+Require Import String.
+
+Inductive AExp : Type := 
+  | avar : string -> AExp
+  | anum : nat -> AExp
+  | aplus : AExp -> AExp -> AExp
+  | amin : AExp -> AExp -> AExp
+  | amul : AExp -> AExp -> AExp
+  | adiv : AExp -> AExp -> AExp
+  | amod : AExp -> AExp -> AExp
+  | Lavar : string -> AExp
+  | BTavar : string -> AExp.
+
+Inductive BExp : Type :=
+| btrue : BExp
+| bfalse : BExp
+| bnot : BExp -> BExp
+| band : BExp -> BExp -> BExp
+| blessthan : AExp -> AExp -> BExp
+| bgreaterthan : AExp -> AExp -> BExp.  
+
+Fixpoint BinTreeToList (b : BinTree) : List :=
+  match b with
+  | leaf => empty_list
+  | node n ltree rtree => n :: (BinTreeToList ltree) :: (BinTreeToList rtree) 
+  end.
+
+Fixpoint ListToBinTree (l : List) : BinTree := 
+  match l with
+  | empty_list => leaf
+  | element 3 => 3 (leaf leaf)
+  | h ++ t => node   
+  end.
 
 
 
