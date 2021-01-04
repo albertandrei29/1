@@ -155,6 +155,7 @@ Definition head (l : List) : nat :=
 Fixpoint tail (l : List) : List :=
   match l with
   | empty_list => empty_list
+  | n :: empty_list => [n]
   | h :: t => tail t
   end.
 
@@ -177,29 +178,112 @@ Compute count_elements ListEx3.
 Compute head ListEx3.
 Compute tail ListEx3.
 
+Example test_append1: [1;2;3] ++ [4;5] = [1;2;3;4;5].
+Proof.
+reflexivity.
+Qed.
+
+Example test_append2: empty_list ++ [4;5] = [4;5].
+Proof.
+reflexivity.
+Qed.
+
+Example test_append3: [1;2;3] ++ empty_list = [1;2;3].
+Proof.
+reflexivity.
+Qed.
+
+Example test_head1: head [1;2;3] = 1.
+Proof.
+reflexivity.
+Qed.
+
+Example test_head2: head [] = 0.
+Proof.
+reflexivity.
+Qed.
+
+Example test_tail1: tail [1;2;3] = [3].
+Proof.
+reflexivity.
+Qed.
+
+Example test_tail2 : tail [] = [].
+Proof.
+reflexivity.
+Qed.
+
+
+
+
 Require Import String.
-Definition Var := string.
+Definition bvar := string.
+Definition ivar := string.
+Definition lvar := string.
+Definition btvar := string. 
 
 Inductive AExp : Type := 
-  | avar : string -> AExp
+  | avar : ivar -> AExp
   | anum : nat -> AExp
   | aplus : AExp -> AExp -> AExp
   | amin : AExp -> AExp -> AExp
   | amul : AExp -> AExp -> AExp
   | adiv : AExp -> AExp -> AExp
-  | amod : AExp -> AExp -> AExp
-  | Lavar : string -> AExp
-  | BTavar : string -> AExp.
+  | amod : AExp -> AExp -> AExp.
 
 Inductive BExp : Type :=
 | btrue : BExp
 | bfalse : BExp
 | bnot : BExp -> BExp
 | band : BExp -> BExp -> BExp
+| bor : BExp -> BExp -> BExp
+| bequal: AExp -> AExp -> BExp
 | blessthan : AExp -> AExp -> BExp
-| bgreaterthan : AExp -> AExp -> BExp.  
+| bgreaterthan : AExp -> AExp -> BExp.
 
-Fixpoint BinTreeToList (b : BinTree) : List :=
+Inductive LExp : Type :=
+| LExp_empty : LExp
+| LExp_tail : LExp -> LExp
+| listapp : LExp -> LExp -> LExp.
+
+Inductive BTExp : Type :=
+| BTExp_leaf : BTExp
+| BTmirr : BTExp -> BTExp.
+
+Inductive Stmt :=
+| bool_declaration : string -> Stmt
+| int_declaration : string -> Stmt
+| list_declaration: string -> Stmt
+| btree_declaration: string -> Stmt
+| assignment_bool : bvar -> BExp -> Stmt
+| assignment_int : ivar -> AExp -> Stmt
+| assignment_list : lvar -> LExp -> Stmt
+| assignment_btree : btvar -> BTExp -> Stmt 
+| sequence : Stmt -> Stmt -> Stmt
+| ifthen : BExp -> Stmt -> Stmt
+| ifthenelse : BExp -> Stmt -> Stmt -> Stmt
+| while : BExp -> Stmt -> Stmt
+| forr : Stmt -> BExp -> Stmt -> Stmt -> Stmt
+| break : Stmt
+| continue : Stmt.
+
+Notation "'If' B 'Then' S" := (ifthen B S) (at level 97).
+Notation "'If' B 'Then' S1 'Else' S2" := (ifthenelse B S1 S2) (at level 97).
+Notation "'bool' A" := (bool_declaration A) (at level 90).
+Notation "'int' A" := (int_declaration A) (at level 90).
+Notation "'List' A" := (list_declaration A) (at level 90).
+Notation "'BinTree' A" := (btree_declaration A) (at level 90).
+Notation "A b= B" := (assignment_bool A B) (at level 90).
+Notation "A i= B" := (assignment_int A B) (at level 90).
+Notation "A l= B" := (assignment_list A B) (at level 90).
+Notation "A bt= B" := (assignment_btree A B) (at level 90).
+Notation "S ;; S'" := (sequence S S') (at level 93, right associativity).
+Notation "'For' S1 ;; B ;; S2 '{' S3 '}' " := (forr S1 B S2 S3) (at level 99).
+
+Definition Env := 
+| 
+
+(*Fixpoint BinTreeToList (b : BinTree) : List :=
   match b with
   | leaf => empty_list
   | node n ltree rtree => n :: (BinTreeToList ltree) :: (BinTreeToList rtree) 
@@ -211,6 +295,7 @@ Fixpoint ListToBinTree (l : List) : BinTree :=
   | element 3 => 3 (leaf leaf)
   | h ++ t => node   
   end.
+*)
 
 
 
