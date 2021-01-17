@@ -1,32 +1,5 @@
-(* Perechi de numere naturale *)
-
 Import Nat.
 Module Type Int.
-
-Inductive natpair : Type :=
-| pair (n1 n2 : nat).
-
-Notation "( x , y )" := (pair x y).
-
-Definition first' (p : natpair) : nat :=
-  match p with
-  | (x,y) => x
-  end.
-
-Definition second' (p : natpair) : nat :=
-  match p with
-  | (x,y) => y
-  end.
-
-Definition swap_pair (p : natpair) : natpair :=
-  match p with
-  | (x,y) => (y,x)
-  end.
-
-Check (pair 10 12).
-Compute first'(10, 12).
-Compute second'(10, 12).
-Compute swap_pair(10, 12).
 
 (* Arbori binari *)
 
@@ -159,6 +132,12 @@ Fixpoint tail (l : List) : List :=
   | h :: t => tail t
   end.
 
+Fixpoint nth_element (l : List) (x : nat) : nat := 
+  match l with
+  | empty_list => 0
+  | a :: b => nth_element b x-1
+  end. 
+
 Fixpoint append (l1 l2 : List) : List :=
   match l1 with
   | empty_list => l2
@@ -177,6 +156,7 @@ Compute first_element ListEx2.
 Compute count_elements ListEx3.
 Compute head ListEx3.
 Compute tail ListEx3.
+Compute nth_element ListEx3 3.
 
 Example test_append1: [1;2;3] ++ [4;5] = [1;2;3;4;5].
 Proof.
@@ -213,17 +193,33 @@ Proof.
 reflexivity.
 Qed.
 
+Require Import Strings.String.
+Local Open Scope string_scope. 
+Local Open Scope list_scope.
+Scheme Equality for string.
 
+Inductive TypeVar := 
+| int : nat -> TypeVar
+| boolean : bool -> TypeVar
+| lists : List -> TypeVar
+| btree : BinTree -> TypeVar
+| undeclared : TypeVar. 
 
+Scheme Equality for TypeVar.
 
-Require Import String.
-Definition bvar := string.
-Definition ivar := string.
-Definition lvar := string.
-Definition btvar := string. 
+Inductive Pair (T1 T2 : Type) :=
+  | pair (t1 : T1) (t2 : T2).
+
+Definition Env := string -> TypeVar.
+Definition env : Env := 
+  fun x => undeclared.
+Compute env "x".
+
+Definition updateEnv (env : Env) (x : string) (r : TypeVar) : Env := 
+  fun y => if(string_eq_dec y x) then r else (env y).
 
 Inductive AExp : Type := 
-  | avar : ivar -> AExp
+  | avar : string -> AExp
   | anum : nat -> AExp
   | aplus : AExp -> AExp -> AExp
   | amin : AExp -> AExp -> AExp
@@ -231,72 +227,276 @@ Inductive AExp : Type :=
   | adiv : AExp -> AExp -> AExp
   | amod : AExp -> AExp -> AExp.
 
+Coercion anum : nat >-> AExp.
+Coercion avar : string >-> AExp.
+Notation "A +' B" := (aplus A B) (at level 11).
+Notation "A *' B" := (amul A B) (at level 8).
+Notation "A /' B" := (adiv A B) (at level 8).
+Notation "A %' B" := (amod A B) (at level 9).
+Notation "A -' B" := (amin A B) (at level 11).
+
+Reserved Notation "A =[ S ]=> N" (at level 60).
+
+Inductive aeval : AExp -> Env -> nat -> Prop :=
+| const : forall n sigma, anum n =[ sigma ]=> n
+| var : forall v sigma, avar v =[ sigma ]=>  match (sigma v) with
+                                              | int x => x
+                                              | _ => 0
+                                              end
+| add : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (i1 + i2) ->
+    a1 +' a2 =[sigma]=> n
+| times : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (i1 * i2) ->
+    a1 *' a2 =[sigma]=> n
+| substract : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (i1 - i2) ->
+    a1 -' a2 =[sigma]=> n
+| division : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (i1 / i2) ->
+    a1 /' a2 =[sigma]=> n
+| modulo : forall a1 a2 i1 i2 sigma n,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    n = (Nat.modulo i1 i2) ->
+    a1 %' a2 =[sigma]=> n
+where "a =[ sigma ]=> n" := (aeval a sigma n).
+
+(*exemple*)
+
+Example aevalEx : "a" +' "a" *' 2 =[updateEnv env "a" (int 10)]=> 30.
+Proof.
+-  eapply add.
+   eapply var.
+   eapply times.
+   eapply var.
+   eapply const.
+   eauto.
+   eauto.
+Qed.
+
 Inductive BExp : Type :=
+| bvar : string -> BExp 
 | btrue : BExp
 | bfalse : BExp
 | bnot : BExp -> BExp
 | band : BExp -> BExp -> BExp
 | bor : BExp -> BExp -> BExp
 | bequal: AExp -> AExp -> BExp
-| blessthan : AExp -> AExp -> BExp
-| bgreaterthan : AExp -> AExp -> BExp.
+| blessthan : AExp -> AExp -> BExp.
 
-Inductive LExp : Type :=
-| LExp_empty : LExp
-| LExp_tail : LExp -> LExp
-| listapp : LExp -> LExp -> LExp.
+Notation "A ==' B" := (bequal A B) (at level 70).
+Notation "A <' B" := (blessthan A B) (at level 70).
+Notation "!' A" := (bnot A)(at level 51, left associativity).
+Notation "A &&' B" := (band A B)(at level 52, left associativity).
+Notation "A ||' B" := (bor A B)(at level 53, left associativity).
 
-Inductive BTExp : Type :=
-| BTExp_leaf : BTExp
-| BTmirr : BTExp -> BTExp.
+Reserved Notation "B ={ S }=> B'" (at level 70).
+
+Inductive beval : BExp -> Env -> bool -> Prop :=
+| b_true : forall sigma, btrue ={ sigma }=> true
+| b_false : forall sigma, bfalse ={ sigma }=> false
+| b_var : forall v sigma, bvar v ={ sigma }=>   match (sigma v) with
+                                              | boolean x => x
+                                              | _ => false
+                                              end
+| b_equal : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = (Nat.eqb i1 i2) ->
+    a1 ==' a2 ={ sigma }=> b
+| b_lessthan : forall a1 a2 i1 i2 sigma b,
+    a1 =[ sigma ]=> i1 ->
+    a2 =[ sigma ]=> i2 ->
+    b = (Nat.leb i1 i2) ->
+    a1 <' a2 ={ sigma }=> b
+| b_not : forall a1 i1 sigma b,
+    a1 ={ sigma }=> i1 ->
+    b = (negb i1) ->
+    !'a1 ={ sigma }=> b
+| b_and : forall a1 a2 i1 i2 sigma b,
+    a1 ={ sigma }=> i1 ->
+    a2 ={ sigma }=> i2 ->
+    b = (andb i1 i2) ->
+    (a1 &&' a2) ={ sigma }=> b 
+| b_or : forall a1 a2 i1 i2 sigma b,
+    a1 ={ sigma }=> i1 ->
+    a2 ={ sigma }=> i2 ->
+    b = (orb i1 i2) ->
+    (a1 ||' a2) ={ sigma }=> b 
+where "B ={ S }=> B'" := (beval B S B').
+
+(*exemple*)
+
+Example bevalEx : band btrue ("z" <' 9) ={ updateEnv env "z" (int 7) }=> true.
+Proof.
+- eapply b_and.
+  eapply b_true.
+  eapply b_lessthan.
+  eapply var.
+  eapply const.
+  eauto.
+  eauto.
+Qed.  
 
 Inductive Stmt :=
-| bool_declaration : string -> Stmt
-| int_declaration : string -> Stmt
-| list_declaration: string -> Stmt
-| btree_declaration: string -> Stmt
-| assignment_bool : bvar -> BExp -> Stmt
-| assignment_int : ivar -> AExp -> Stmt
-| assignment_list : lvar -> LExp -> Stmt
-| assignment_btree : btvar -> BTExp -> Stmt 
+| bool_declaration : string -> BExp -> Stmt
+| int_declaration : string -> AExp -> Stmt
+(*| list_declaration: string -> Stmt
+| btree_declaration: string -> Stmt*)
+(*| assignment_list : lvar -> LExp -> Stmt
+| assignment_btree : btvar -> BTExp -> Stmt*) 
 | sequence : Stmt -> Stmt -> Stmt
 | ifthen : BExp -> Stmt -> Stmt
 | ifthenelse : BExp -> Stmt -> Stmt -> Stmt
 | while : BExp -> Stmt -> Stmt
 | forr : Stmt -> BExp -> Stmt -> Stmt -> Stmt
-| break : Stmt
-| continue : Stmt.
+| switch : string -> list(Pair TypeVar Stmt) -> Stmt
+| break : Stmt.
 
 Notation "'If' B 'Then' S" := (ifthen B S) (at level 97).
 Notation "'If' B 'Then' S1 'Else' S2" := (ifthenelse B S1 S2) (at level 97).
-Notation "'bool' A" := (bool_declaration A) (at level 90).
-Notation "'int' A" := (int_declaration A) (at level 90).
-Notation "'List' A" := (list_declaration A) (at level 90).
+Notation "X :b= A" := (bool_declaration X A) (at level 90).
+Notation "X :i= A" := (int_declaration X A) (at level 90).
+(*Notation "'List' A" := (list_declaration A) (at level 90).
 Notation "'BinTree' A" := (btree_declaration A) (at level 90).
-Notation "A b= B" := (assignment_bool A B) (at level 90).
-Notation "A i= B" := (assignment_int A B) (at level 90).
 Notation "A l= B" := (assignment_list A B) (at level 90).
-Notation "A bt= B" := (assignment_btree A B) (at level 90).
+Notation "A bt= B" := (assignment_btree A B) (at level 90).*)
 Notation "S ;; S'" := (sequence S S') (at level 93, right associativity).
-Notation "'For' S1 ;; B ;; S2 '{' S3 '}' " := (forr S1 B S2 S3) (at level 99).
 
-Definition Env := 
-| 
+Reserved Notation "S -{ Sigma }-> Sigma'" (at level 60).
 
-(*Fixpoint BinTreeToList (b : BinTree) : List :=
-  match b with
-  | leaf => empty_list
-  | node n ltree rtree => n :: (BinTreeToList ltree) :: (BinTreeToList rtree) 
-  end.
+Fixpoint evalSwitch (s : string)(env : Env)(l : (list(Pair TypeVar Stmt))) :=
+match l with
+| nil => break
+| ((pair _ _ x y) :: l') => match (env s) with
+                              | z => if(TypeVar_beq z x) then y 
+                                     else (evalSwitch s env l')
+                            end
+end.
 
-Fixpoint ListToBinTree (l : List) : BinTree := 
-  match l with
-  | empty_list => leaf
-  | element 3 => 3 (leaf leaf)
-  | h ++ t => node   
-  end.
-*)
+Inductive eval : Stmt -> Env -> Env -> Prop :=
+| e_int_decl: forall a i x sigma sigma',
+   a =[ sigma ]=> i ->
+   sigma' = (updateEnv sigma x (int i)) ->
+   (x :i= a) -{ sigma }-> sigma'
+| e_bool_decl: forall a i x sigma sigma',
+   a ={ sigma }=> i ->
+   sigma' = (updateEnv sigma x (boolean i)) ->
+   (x :b= a) -{ sigma }-> sigma'
+| e_seq : forall s1 s2 sigma sigma1 sigma2,
+    s1 -{ sigma }-> sigma1 ->
+    s2 -{ sigma1 }-> sigma2 ->
+    (s1 ;; s2) -{ sigma }-> sigma2
+| e_if_then : forall b s sigma,
+    ifthen b s -{ sigma }-> sigma
+| e_if_then_elsetrue : forall b s1 s2 sigma sigma',
+    b ={ sigma }=> true ->
+    s1 -{ sigma }-> sigma' ->
+    ifthenelse b s1 s2 -{ sigma }-> sigma' 
+| e_if_then_elsefalse : forall b s1 s2 sigma sigma',
+    b ={ sigma }=> false ->
+    s2 -{ sigma }-> sigma' ->
+    ifthenelse b s1 s2 -{ sigma }-> sigma' 
+| e_whilefalse : forall b s sigma,
+    b ={ sigma }=> false ->
+    while b s -{ sigma }-> sigma
+| e_whiletrue : forall b s sigma sigma',
+    b ={ sigma }=> true ->
+    (s ;; while b s) -{ sigma }-> sigma' ->
+    while b s -{ sigma }-> sigma'
+| e_break : forall sigma,
+    (break) -{ sigma }-> sigma
+| e_switch : forall s1 sigma sigma' list s,
+    s1 = (evalSwitch s sigma list) ->
+    s1 -{ sigma }-> sigma' ->
+    (switch s list) -{ sigma }-> sigma'
+where "s -{ sigma }-> sigma'" := (eval s sigma sigma').
 
+(*exemple*)
+
+Example bool_decl_example : exists sigma, ("x" :b= btrue)-{ env }-> sigma /\(sigma "x" = (boolean true)).
+Proof.
+eexists.
+split.
+- eapply e_bool_decl.
+  eapply b_true. 
+  eauto. 
+- eauto.
+Qed.
+
+Example ifthenelsefalse : exists sigma, (If bfalse Then break Else "a" :i= 5) -{ env }-> sigma /\ (sigma "a" = (int 5)).
+Proof.
+eexists.
+split.
+- eapply e_if_then_elsefalse.
+  eapply b_false.
+  eapply e_int_decl.
+  eapply const.
+  eauto.
+-eauto.
+Qed.
+
+Example whiletrue_example : exists sigma, while(!'("x" ==' 3))("z" :i= "z" +' 1 ;; "x" :i= "x" +' 1) -{ updateEnv (updateEnv env "z" (int 11)) "x" (int 2)}-> sigma /\ (sigma "z" = (int 12)).
+Proof.
+  eexists.
+  split.
+  eapply e_whiletrue.
+  eapply b_not.
+  eapply b_equal.
+  eapply var.
+  eapply const.
+  eauto.
+  eauto.
+  eapply e_seq.
+  eapply e_seq.
+  eapply e_int_decl.
+  eapply add.
+  eapply var.
+  eapply const.
+  eauto.
+  eauto.
+  eapply e_int_decl.
+  eapply add.
+  eapply var.
+  eapply const.
+  eauto.
+  eauto.
+  (*a doua iteratie*)
+  eapply e_whilefalse.
+  eapply b_not.
+  eapply b_equal.
+  eapply var.
+  eapply const.
+  eauto.
+  eauto.
+  eauto.
+Qed.
+
+Example switch_example : exists sigma, ("x" :i= 7 ;; switch "x" ((pair _ _ (int 29) ("bb" :b= bfalse)) :: (pair _ _ (int 3) ("bb" :b= bfalse)) :: (pair _ _ (int 7) ("bb" :b= btrue)) :: nil)) -{ env }-> sigma /\ (sigma "bb" = (boolean true)).
+Proof.
+eexists.
+split.
+- eapply e_seq.
+  eapply e_int_decl.
+  eapply const.
+  eauto.
+  eapply e_switch.
+  eauto.
+  simpl.
+  eapply e_bool_decl.
+  eapply b_true.
+  eauto.
+- eauto.
+Qed.
 
 
 
